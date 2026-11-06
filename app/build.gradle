@@ -1,0 +1,47 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'app.diary.offline'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'app.diary.offline'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // A fixed personal key, so every build (on any computer or on GitHub)
+    // can install over the previous one without losing your entries.
+    signingConfigs {
+        personal {
+            storeFile file('diary-release.jks')
+            storePassword 'diarypass'
+            keyAlias 'diary'
+            keyPassword 'diarypass'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.personal
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.personal
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Diary</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: blob:;">
+<style>
+:root{
+  --paper:#F5F7F8; --sheet:#FFFFFF; --ink:#1E3550; --ink-soft:#5B6E83;
+  --rule:#D9E0E6; --mark:#2F6FA8; --today:#E7EEF5; --danger:#A23B3B;
+  --serif:"Noto Serif", Georgia, serif;
+  --text:"Noto Serif", Georgia, serif;
+  --ui:Roboto, system-ui, sans-serif;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#10171F; --sheet:#17212C; --ink:#DCE6F0; --ink-soft:#8FA2B6;
+    --rule:#2A3846; --mark:#7FB2E5; --today:#1E2D3C; --danger:#E08585;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#10171F; --sheet:#17212C; --ink:#DCE6F0; --ink-soft:#8FA2B6;
+  --rule:#2A3846; --mark:#7FB2E5; --today:#1E2D3C; --danger:#E08585;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--paper);color:var(--ink);font-family:var(--ui);-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+
+.app{max-width:560px;margin:0 auto;padding:16px 16px 32px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.month{font-family:var(--serif);font-weight:400;font-size:2.2rem;line-height:1;margin:0;letter-spacing:-.01em}
+.month .yr{color:var(--ink-soft);font-style:italic;margin-left:.25em}
+.nav{display:flex;gap:4px}
+.icon{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;font-size:1.3rem}
+.icon:hover{background:var(--today)}
+.sub{display:flex;justify-content:space-between;align-items:center;margin:10px 0 18px;color:var(--ink-soft);font-size:.9rem}
+.link{color:var(--mark);font-weight:500;padding:6px 0}
+
+/* grid */
+.dow,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.dow span{text-align:center;font-size:.78rem;color:var(--ink-soft);padding-bottom:8px}
+.grid{border-top:1px solid var(--rule);border-left:1px solid var(--rule)}
+.cell{position:relative;aspect-ratio:1/1.15;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  background:var(--sheet);text-align:left;padding:6px 7px;display:flex;flex-direction:column;justify-content:space-between}
+.cell.out{background:transparent;cursor:default}
+.cell .n{font-size:.95rem;font-weight:500}
+.cell.today .n{display:inline-grid;place-items:center;width:1.8em;height:1.8em;margin:-.3em 0 0 -.35em;border-radius:50%;background:var(--ink);color:var(--sheet)}
+.cell.sel{background:var(--today)}
+.cell .lines{display:flex;flex-direction:column;gap:3px}
+.cell .lines i{display:block;height:2px;border-radius:1px;background:var(--mark)}
+
+/* preview */
+.preview{margin-top:22px;background:var(--sheet);border:1px solid var(--rule);border-radius:4px;padding:16px 18px;cursor:pointer;text-align:left;width:100%;display:block}
+.preview h2{font-family:var(--serif);font-weight:400;font-size:1.5rem;margin:0 0 6px}
+.preview p{font-family:var(--text);font-size:1rem;line-height:1.6;margin:0;white-space:pre-wrap;
+  display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+.preview .empty{color:var(--ink-soft);font-family:var(--ui)}
+
+/* editor */
+.editor{position:fixed;inset:0;background:var(--sheet);display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  transform:translateY(100%);transition:transform .22s ease;z-index:20}
+.editor.open{transform:none}
+.ed-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 16px;border-bottom:1px solid var(--rule)}
+.ed-title{font-family:var(--serif);font-size:1.6rem;margin:0;line-height:1.1}
+.ed-title small{display:block;font-family:var(--ui);font-size:.8rem;color:var(--ink-soft);margin-top:2px}
+.done{background:var(--ink);color:var(--sheet);border-radius:20px;padding:9px 18px;font-weight:600}
+textarea{flex:1;width:100%;max-width:640px;margin:0 auto;border:0;resize:none;background:transparent;color:var(--ink);
+  font-family:var(--text);font-size:1.08rem;line-height:1.7;padding:18px 18px 24px;outline:none}
+.ed-foot{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;font-size:.85rem;color:var(--ink-soft);border-top:1px solid var(--rule)}
+.del{color:var(--danger);font-weight:500;padding:8px 0}
+
+/* export sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,20,30,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--sheet);border-radius:14px 14px 0 0;z-index:31;
+  padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px));transform:translateY(105%);transition:transform .22s ease;max-width:560px;margin:0 auto}
+.sheet.open{transform:none}
+.sheet h3{font-family:var(--serif);font-weight:400;font-size:1.5rem;margin:4px 4px 8px}
+.opt{display:block;width:100%;text-align:left;padding:13px 4px;border-top:1px solid var(--rule)}
+.opt b{display:block;font-weight:600}
+.opt span{color:var(--ink-soft);font-size:.88rem}
+.msg{min-height:1.2em;color:var(--ink-soft);font-size:.88rem;margin:8px 4px 0}
+
+@media (prefers-reduced-motion: reduce){.editor,.sheet,.scrim{transition:none}}
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="top">
+    <h1 class="month" id="monthTitle"></h1>
+    <div class="nav">
+      <button class="icon" id="prev" aria-label="Previous month">‹</button>
+      <button class="icon" id="next" aria-label="Next month">›</button>
+    </div>
+  </div>
+  <div class="sub">
+    <span id="count"></span>
+    <span>
+      <button class="link" id="toToday">Today</button>
+      &nbsp;&nbsp;
+      <button class="link" id="openExport">Export</button>
+    </span>
+  </div>
+  <div class="dow"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+  <div class="grid" id="grid" role="grid"></div>
+  <button class="preview" id="preview"></button>
+</main>
+
+<section class="editor" id="editor" aria-hidden="true">
+  <div class="ed-bar">
+    <h2 class="ed-title" id="edTitle"></h2>
+    <button class="done" id="done">Done</button>
+  </div>
+  <textarea id="text" placeholder="Write about this day…" aria-label="Diary entry"></textarea>
+  <div class="ed-foot">
+    <span id="status">Saved on this phone</span>
+    <button class="del" id="del">Delete entry</button>
+  </div>
+</section>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet" aria-hidden="true">
+  <h3>Export</h3>
+  <button class="opt" data-exp="month-md"><b>This month</b><span>Markdown file with every entry of the month shown</span></button>
+  <button class="opt" data-exp="all-md"><b>Whole diary</b><span>Markdown file, all entries grouped by month</span></button>
+  <button class="opt" data-exp="all-txt"><b>Whole diary, plain text</b><span>Readable in any notes app</span></button>
+  <button class="opt" data-exp="json"><b>Backup</b><span>JSON file you can restore later</span></button>
+  <button class="opt" id="importBtn"><b>Restore from backup</b><span>Merge entries from a JSON backup</span></button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+  <p class="msg" id="exportMsg"></p>
+</section>
+
+<script>
+(function(){
+  const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const WD=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const LS_KEY="diary.entries.v1";
+  const pad=n=>String(n).padStart(2,"0");
+  const ymKey=(y,m)=>y+"-"+pad(m+1);
+  const today=new Date();
+  let view={y:today.getFullYear(), m:today.getMonth()};
+  let selected={y:today.getFullYear(), m:today.getMonth(), d:today.getDate()};
+  // entries: { "YYYY-MM": { "DD": "text" } }
+  let entries={};
+
+  // ---------- storage (phone file via AndroidDiary bridge; browser fallback) ----------
+  const bridge = window.AndroidDiary || null;
+  function loadStore(){
+    try{
+      const raw = bridge ? bridge.load() : localStorage.getItem(LS_KEY);
+      if(raw){ const o=JSON.parse(raw); entries=(o&&o.entries)||o||{}; }
+    }catch(e){ entries={}; }
+  }
+  function writeStore(){
+    const json=JSON.stringify({format:"diary",version:1,entries});
+    try{ return bridge ? bridge.save(json) : (localStorage.setItem(LS_KEY,json), true); }
+    catch(e){ return false; }
+  }
+
+  // ---------- data access ----------
+  const getText=(y,m,d)=> (entries[ymKey(y,m)]||{})[pad(d)]||"";
+  let flushTimer=null, dirty=false;
+  function setText(y,m,d,t){
+    const k=ymKey(y,m);
+    entries[k]=entries[k]||{};
+    if(t.trim()) entries[k][pad(d)]=t; else delete entries[k][pad(d)];
+    if(!Object.keys(entries[k]).length) delete entries[k];
+    dirty=true;
+    clearTimeout(flushTimer); flushTimer=setTimeout(flush,500);
+  }
+  function flush(){
+    clearTimeout(flushTimer);
+    if(!dirty) return;
+    if(writeStore()){ dirty=false; setStatus("Saved on this phone"); }
+    else { setStatus("Could not save. Retrying…"); flushTimer=setTimeout(flush,2000); }
+  }
+  window.flushNow=flush;
+
+  // ---------- calendar ----------
+  const $=id=>document.getElementById(id);
+  function render(){
+    const {y,m}=view;
+    $("monthTitle").innerHTML=MONTHS[m]+'<span class="yr">'+y+'</span>';
+    const first=new Date(y,m,1), days=new Date(y,m+1,0).getDate();
+    const lead=(first.getDay()+6)%7;
+    const g=$("grid"); g.innerHTML="";
+    const mk=entries[ymKey(y,m)]||{};
+    for(let i=0;i<lead;i++){ const c=document.createElement("div"); c.className="cell out"; g.appendChild(c); }
+    for(let d=1; d<=days; d++){
+      const b=document.createElement("button");
+      b.className="cell";
+      const isToday= y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();
+      if(isToday) b.classList.add("today");
+      if(selected.y===y&&selected.m===m&&selected.d===d) b.classList.add("sel");
+      const t=mk[pad(d)]||"";
+      const lines=t? Math.min(3, Math.max(1, Math.ceil(t.length/120))) : 0;
+      b.innerHTML='<span class="n">'+d+'</span><span class="lines">'+
+        Array.from({length:lines},(_,i)=>'<i style="width:'+(i===lines-1&&lines>1?55:100)+'%"></i>').join("")+'</span>';
+      b.setAttribute("aria-label", d+" "+MONTHS[m]+(t?", has entry":""));
+      b.addEventListener("click",()=>{
+        const same= selected.y===y&&selected.m===m&&selected.d===d;
+        selected={y,m,d};
+        if(same) openEditor(); else render();
+      });
+      b.addEventListener("dblclick",openEditor);
+      g.appendChild(b);
+    }
+    const trail=(7-((lead+days)%7))%7;
+    for(let i=0;i<trail;i++){ const c=document.createElement("div"); c.className="cell out"; g.appendChild(c); }
+    const n=Object.keys(mk).length;
+    $("count").textContent= n? n+(n===1?" entry":" entries")+" this month" : "No entries this month";
+    renderPreview();
+  }
+  function longDate(y,m,d){ return WD[new Date(y,m,d).getDay()]+" "+d+" "+MONTHS[m]+" "+y; }
+  function renderPreview(){
+    const {y,m,d}=selected, t=getText(y,m,d), p=$("preview");
+    p.innerHTML="";
+    const h=document.createElement("h2"); h.textContent=longDate(y,m,d);
+    const para=document.createElement("p");
+    if(t){ para.textContent=t; } else { para.className="empty"; para.textContent="Nothing written yet. Tap to write."; }
+    p.append(h,para);
+  }
+
+  // ---------- editor ----------
+  function openEditor(){
+    const {y,m,d}=selected;
+    $("edTitle").innerHTML="";
+    $("edTitle").append(document.createTextNode(d+" "+MONTHS[m]));
+    const s=document.createElement("small"); s.textContent=WD[new Date(y,m,d).getDay()]+", "+y; $("edTitle").append(s);
+    $("text").value=getText(y,m,d);
+    setStatus(getText(y,m,d)?"Saved":"New entry");
+    $("editor").classList.add("open"); $("editor").setAttribute("aria-hidden","false");
+    setTimeout(()=>$("text").focus(),230);
+  }
+  function closeEditor(){
+    flush();
+    $("editor").classList.remove("open"); $("editor").setAttribute("aria-hidden","true");
+    $("text").blur(); render();
+  }
+  function setStatus(s){ $("status").textContent=s; }
+  $("text").addEventListener("input",()=>{ const {y,m,d}=selected; setStatus("Saving…"); setText(y,m,d,$("text").value); });
+  $("done").addEventListener("click",closeEditor);
+  $("del").addEventListener("click",()=>{
+    if(!$("text").value.trim()){ closeEditor(); return; }
+    if(confirm("Delete the entry for this day?")){ const {y,m,d}=selected; $("text").value=""; setText(y,m,d,""); closeEditor(); }
+  });
+  $("preview").addEventListener("click",openEditor);
+  $("prev").addEventListener("click",()=>{ view.m--; if(view.m<0){view.m=11;view.y--;} render(); });
+  $("next").addEventListener("click",()=>{ view.m++; if(view.m>11){view.m=0;view.y++;} render(); });
+  $("toToday").addEventListener("click",()=>{ view={y:today.getFullYear(),m:today.getMonth()}; selected={...view,d:today.getDate()}; render(); });
+  // swipe between months
+  let sx=null; $("grid").addEventListener("touchstart",e=>{sx=e.touches[0].clientX},{passive:true});
+  $("grid").addEventListener("touchend",e=>{ if(sx==null)return; const dx=e.changedTouches[0].clientX-sx; sx=null;
+    if(Math.abs(dx)>60) $(dx<0?"next":"prev").click(); });
+
+  // ---------- export ----------
+  function openSheet(){ $("exportMsg").textContent=""; $("scrim").classList.add("open"); $("sheet").classList.add("open"); $("sheet").setAttribute("aria-hidden","false"); }
+  function closeSheet(){ $("scrim").classList.remove("open"); $("sheet").classList.remove("open"); $("sheet").setAttribute("aria-hidden","true"); }
+  $("openExport").addEventListener("click",openSheet);
+  $("scrim").addEventListener("click",closeSheet);
+
+  function sortedMonths(){ return Object.keys(entries).filter(k=>Object.keys(entries[k]).length).sort(); }
+  function monthBlock(k, md){
+    const [y,mm]=k.split("-").map(Number), m=mm-1, days=entries[k];
+    let out= md? "## "+MONTHS[m]+" "+y+"\n\n" : MONTHS[m].toUpperCase()+" "+y+"\n"+"=".repeat(MONTHS[m].length+5)+"\n\n";
+    for(const dd of Object.keys(days).sort()){
+      const d=Number(dd);
+      out+= md? "### "+longDate(y,m,d)+"\n\n"+days[dd].trim()+"\n\n" : longDate(y,m,d)+"\n"+"-".repeat(longDate(y,m,d).length)+"\n"+days[dd].trim()+"\n\n";
+    }
+    return out;
+  }
+  function buildExport(kind){
+    const stamp=today.getFullYear()+"-"+pad(today.getMonth()+1)+"-"+pad(today.getDate());
+    if(kind==="month-md"){
+      const k=ymKey(view.y,view.m);
+      if(!entries[k]||!Object.keys(entries[k]).length) return null;
+      return {filename:"diary-"+k+".md", data:"# Diary\n\n"+monthBlock(k,true)};
+    }
+    const ms=sortedMonths(); if(!ms.length) return null;
+    if(kind==="all-md") return {filename:"diary-"+stamp+".md", data:"# Diary\n\n"+ms.map(k=>monthBlock(k,true)).join("")};
+    if(kind==="all-txt") return {filename:"diary-"+stamp+".txt", data:"DIARY\n\n"+ms.map(k=>monthBlock(k,false)).join("\n")};
+    if(kind==="json") return {filename:"diary-backup-"+stamp+".json", data:JSON.stringify({format:"diary-backup",version:1,exported:new Date().toISOString(),entries},null,2)};
+  }
+  const MIME={md:"text/markdown",txt:"text/plain",json:"application/json"};
+  document.querySelectorAll("[data-exp]").forEach(b=>b.addEventListener("click",()=>{
+    const f=buildExport(b.dataset.exp);
+    if(!f){ $("exportMsg").textContent= b.dataset.exp==="month-md"?"This month has no entries yet.":"The diary has no entries yet."; return; }
+    const ext=f.filename.split(".").pop();
+    if(bridge){ $("exportMsg").textContent="Choose where to save "+f.filename+"."; bridge.exportFile(f.filename, MIME[ext], f.data); }
+    else {
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(new Blob([f.data],{type:MIME[ext]})); a.download=f.filename; a.click();
+      $("exportMsg").textContent="Exported "+f.filename+".";
+    }
+  }));
+  window.onExportResult=msg=>{ $("exportMsg").textContent=msg; };
+  window.onImportCancelled=()=>{ $("exportMsg").textContent=""; };
+  function restore(text){
+    try{
+      const obj=JSON.parse(text);
+      const src=obj&&obj.entries; if(!src||typeof src!=="object") throw 0;
+      let n=0;
+      for(const k of Object.keys(src)){
+        if(!/^\d{4}-\d{2}$/.test(k)||!src[k]||typeof src[k]!=="object") continue;
+        for(const dd of Object.keys(src[k])){
+          if(!/^\d{2}$/.test(dd)||typeof src[k][dd]!=="string"||!src[k][dd].trim()) continue;
+          entries[k]=entries[k]||{};
+          const cur=entries[k][dd];
+          if(!cur) entries[k][dd]=src[k][dd];
+          else if(cur!==src[k][dd] && !cur.includes(src[k][dd])) entries[k][dd]=cur+"\n\n"+src[k][dd];
+          n++;
+        }
+      }
+      dirty=true; flush(); render();
+      $("exportMsg").textContent="Restored "+n+(n===1?" entry.":" entries.");
+    }catch(err){ $("exportMsg").textContent="That file isn't a diary backup."; }
+  }
+  window.onImportText=restore;
+  $("importBtn").addEventListener("click",()=>{ if(bridge) bridge.importFile(); else $("importFile").click(); });
+  $("importFile").addEventListener("change",async e=>{
+    const file=e.target.files[0]; e.target.value=""; if(file) restore(await file.text());
+  });
+
+  // ---------- back button ----------
+  window.handleBack=()=>{
+    if($("editor").classList.contains("open")){ closeEditor(); return true; }
+    if($("sheet").classList.contains("open")){ closeSheet(); return true; }
+    return false;
+  };
+  document.addEventListener("visibilitychange",()=>{ if(document.hidden) flush(); });
+
+  // ---------- startup ----------
+  loadStore(); render();
+})();
+</script>
+</body>
+</html>
